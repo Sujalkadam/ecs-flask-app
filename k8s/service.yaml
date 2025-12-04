@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-app-service
+  namespace: inventory-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: inventory-app
+  ports:
+    - name: http
+      port: 80        # external
+      targetPort: 5000  # container port
+

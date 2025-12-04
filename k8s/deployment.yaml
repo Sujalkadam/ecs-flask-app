@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-app-deployment
+  namespace: inventory-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-app
+  template:
+    metadata:
+      labels:
+        app: inventory-app
+    spec:
+      containers:
+        - name: inventory-app
+          image: 724591800367.dkr.ecr.ap-south-1.amazonaws.com/final-rpo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: inventory-app-secret
+            - configMapRef:
+                name: inventory-app-config
+          command: ["sh", "-c"]
+          args:
+            - >
+              flask db upgrade &&
+              gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 run:app
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      # If your ECR repo is private in same account, and node IAM has ECR access,
+      # you don't need imagePullSecrets.
+
