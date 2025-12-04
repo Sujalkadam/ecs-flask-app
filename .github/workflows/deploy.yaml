@@ -9,9 +9,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # -------------------------
+    # CHECKOUT CODE
+    # -------------------------
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # -------------------------
+    # CONFIGURE AWS
+    # -------------------------
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -19,31 +25,60 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
+    # -------------------------
+    # LOGIN TO ECR
+    # -------------------------
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build & Push Docker Image
+    # -------------------------
+    # BUILD + PUSH DOCKER
+    # -------------------------
+    - name: Build & Push Docker image
       run: |
         IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
+        echo "Building Docker Image: $IMAGE"
         docker build -t $IMAGE .
         docker push $IMAGE
 
-    # ✅ FIX: Install eksctl instead of using missing GitHub action
+    # -------------------------
+    # UPDATE kubeconfig MANUALLY (RELIABLE)
+    # -------------------------
     - name: Install eksctl
       run: |
-        curl --silent --location \
-        "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
-        | tar xz -C /tmp
-        sudo mv /tmp/eksctl /usr/local/bin
+        curl -s https://api.github.com/repos/eksctl-io/eksctl/releases/latest \
+        | grep "browser_download_url.*linux_amd64\.tar\.gz" \
+        | cut -d '"' -f 4 \
+        | wget -qi -
+        tar -xzf eksctl_*_linux_amd64.tar.gz -C /usr/local/bin
         eksctl version
 
-    # ✅ FIX: Manually update kubeconfig
     - name: Update kubeconfig
       run: |
-        eksctl utils write-kubeconfig \
-          --cluster ${{ secrets.EKS_CLUSTER_NAME }} \
-          --region ${{ secrets.AWS_REGION }}
+        eksctl utils write-kubeconfig --region ${{ secrets.AWS_REGION }} --cluster ${{ secrets.EKS_CLUSTER_NAME }}
 
-    - name: Apply Kubernetes manifests
+    # -------------------------
+    # APPLY KUBERNETES FILES
+    # -------------------------
+    - name: Apply Kubernetes Manifests
       run: |
         kubectl apply -f k8s/
+
+    # -------------------------
+    # UPDATE DEPLOYMENT IMAGE
+    # -------------------------
+    - name: Update deployment image
+      run: |
+        IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
+
+        echo "Updating deployment image to: $IMAGE"
+
+        kubectl set image deployment/inventory-app-deployment \
+          inventory-app=$IMAGE -n inventory-app
+
+    # -------------------------
+    # VERIFY DEPLOYMENT STATUS
+    # -------------------------
+    - name: Wait for rollout
+      run: |
+        kubectl rollout status deployment/inventory-app-deployment -n inventory-app
