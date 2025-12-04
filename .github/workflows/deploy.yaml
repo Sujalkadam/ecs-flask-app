@@ -28,11 +28,21 @@ jobs:
         docker build -t $IMAGE .
         docker push $IMAGE
 
-    - name: Update kubeconfig for EKS
-      uses: aws-actions/amazon-eks-update-kubeconfig@v1   # FIXED
-      with:
-        cluster-name: ${{ secrets.EKS_CLUSTER_NAME }}
-        region: ${{ secrets.AWS_REGION }}
+    # ✅ FIX: Install eksctl instead of using missing GitHub action
+    - name: Install eksctl
+      run: |
+        curl --silent --location \
+        "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" \
+        | tar xz -C /tmp
+        sudo mv /tmp/eksctl /usr/local/bin
+        eksctl version
+
+    # ✅ FIX: Manually update kubeconfig
+    - name: Update kubeconfig
+      run: |
+        eksctl utils write-kubeconfig \
+          --cluster ${{ secrets.EKS_CLUSTER_NAME }} \
+          --region ${{ secrets.AWS_REGION }}
 
     - name: Apply Kubernetes manifests
       run: |
