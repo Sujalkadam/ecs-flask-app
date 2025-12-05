@@ -1,20 +1,24 @@
 :root {
-  --bg: #f8f9fb;
-  --card: #ffffff;
-  --accent: #0e1116;
-  --muted: #6c757d;
-  --border: #e4e7ec;
-  --gradient: linear-gradient(135deg, #141e30 0%, #243b55 100%);
-  --gradient-soft: linear-gradient(120deg, rgba(20, 30, 48, 0.08), rgba(36, 59, 85, 0.08));
+  --bg: #0d0d0d;
+  --card: #1a1a1a;
+  --accent: #ffffff;
+  --muted: #9ca3af;
+  --border: #2a2a2a;
+
+  --gradient: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  --gradient-soft: linear-gradient(120deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+
 body {
   min-height: 100vh;
-  background: radial-gradient(circle at top left, #1a1a1a, #0b0b0b 60%, #050505);
+  background: radial-gradient(circle at top left, #121212, #0a0a0a 60%, #050505);
   color: #e4e4e4;
-  font-family: var(--font-family, "Inter", system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
 
 
 
@@ -115,4 +119,46 @@ body {
     width: 100%;
   }
 }
+/* Dark mode cards */
+.hero-card,
+.role-card,
+.auth-card {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--accent) !important;
+}
+
+/* Dark mode glass blur areas */
+.backdrop-blur {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #eaeaea !important;
+}
+
+/* Muted text fix for dark mode */
+.text-muted {
+  color: #b0b0b0 !important;
+}
+
+/* Fix Bootstrap outline button */
+.btn-outline-dark {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+.btn-outline-dark:hover {
+  background: #ffffff !important;
+  color: #000 !important;
+}
+
+/* Fix Bootstrap dark button */
+.btn-dark {
+  background: #2c2c2c !important;
+  border: none !important;
+}
+
+.btn-dark:hover {
+  background: #3a3a3a !important;
+}
+
 
