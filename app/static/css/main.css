@@ -11,13 +11,11 @@
 
 body {
   min-height: 100vh;
-  background: #0d0d0d; /* deep dark */
-  color: #f2f2f2;      /* light text */
+  background: radial-gradient(circle at top left, #1a1a1a, #0b0b0b 60%, #050505);
+  color: #e4e4e4;
   font-family: var(--font-family, "Inter", system-ui, -apple-system, "Segoe UI", sans-serif);
-
-  /* Optional subtle dark gradient */
-  background: linear-gradient(160deg, #0d0d0d 0%, #1a1a1a 50%, #0f0f0f 100%);
 }
+
 
 
 .hero-card,
