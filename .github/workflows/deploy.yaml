@@ -49,6 +49,7 @@ jobs:
         inventory-app=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest \
         -n inventory-app
 
+
     - name: Verify Rollout
       run: |
         kubectl rollout status deployment/inventory-app-deployment -n inventory-app
