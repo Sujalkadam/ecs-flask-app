@@ -11,11 +11,14 @@
 
 body {
   min-height: 100vh;
-  background: linear-gradient(135deg, #4b006e, #8f00ff);
-  color: white;
+  background: #0d0d0d; /* deep dark */
+  color: #f2f2f2;      /* light text */
   font-family: var(--font-family, "Inter", system-ui, -apple-system, "Segoe UI", sans-serif);
-  color: var(--accent);
+
+  /* Optional subtle dark gradient */
+  background: linear-gradient(160deg, #0d0d0d 0%, #1a1a1a 50%, #0f0f0f 100%);
 }
+
 
 .hero-card,
 .role-card {
