@@ -1,55 +1,95 @@
-name: Deploy to EKS
+name: Deploy to ECS
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-3
+  ECR_REPOSITORY: inventory-test
+  ECS_CLUSTER: inventory-test-cluster
+  ECS_SERVICE: inventory-test-service
+  CONTAINER_NAME: inventory
+  IMAGE_TAG: latest
+  ACCOUNT_ID: 637732030819
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::637732030819:role/GitHubActionsECSRole
+          role-session-name: GitHubActionsECS
+          aws-region: ap-northeast-3
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build Docker Image
-      run: |
-        docker build -t ${{ secrets.ECR_REPOSITORY }} .
+      - name: Build, Tag, and Push Docker image to ECR
+        run: |
+          echo "Building Docker image..."
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-    - name: Tag Docker Image
-      run: |
-        docker tag ${{ secrets.ECR_REPOSITORY }}:latest \
-        ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
+          echo "Tagging image..."
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Push to ECR
-      run: |
-        docker push ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest
+          echo "Pushing image..."
+          docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Update kubeconfig
-      run: |
-        aws eks update-kubeconfig \
-          --name ${{ secrets.EKS_CLUSTER_NAME }} \
-          --region ${{ secrets.AWS_REGION }}
+      - name: Update ECS Service with New Task Definition
+        run: |
+          echo "Forcing new deployment on ECS service..."
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment \
+            --region $AWS_REGION
 
-    - name: Deploy to EKS
-      run: |
-        kubectl set image deployment/inventory-app-deployment \
-        inventory-app=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:latest \
-        -n inventory-app
+      - name: Fetch ECS Public IP and show app URL
+        id: fetch-public-ip
+        run: |
+          echo "Fetching ECS task public IP..."
 
+          # Get running task ARN
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster $ECS_CLUSTER \
+            --service-name $ECS_SERVICE \
+            --desired-status RUNNING \
+            --region $AWS_REGION \
+            --query "taskArns[0]" \
+            --output text)
 
-    - name: Verify Rollout
-      run: |
-        kubectl rollout status deployment/inventory-app-deployment -n inventory-app
+          echo "TASK ARN: $TASK_ARN"
+
+          # Get the ENI attached to ECS task
+          ENI_ID=$(aws ecs describe-tasks \
+            --cluster $ECS_CLUSTER \
+            --tasks $TASK_ARN \
+            --region $AWS_REGION \
+            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
+            --output text)
+
+          echo "ENI ID: $ENI_ID"
+
+          # Get Public IP from ENI
+          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
+            --network-interface-ids $ENI_ID \
+            --region $AWS_REGION \
+            --query "NetworkInterfaces[0].Association.PublicIp" \
+            --output text)
+
+          echo "Public IP: $PUBLIC_IP"
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+
+          echo "APP LIVE: http://$PUBLIC_IP:5000"
